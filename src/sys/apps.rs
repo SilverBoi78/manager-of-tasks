@@ -150,20 +150,41 @@ impl DesktopDb {
             if let Some(class) = kv.get("StartupWMClass") {
                 self.by_wmclass.entry(class.to_lowercase()).or_insert(idx);
             }
-            if let Some(prog) = exec.as_deref().and_then(exec_program) {
+            // Shortcuts that open a URL with a launcher (e.g. a Steam game's
+            // "steam steam://rungameid/123") don't describe the launcher itself.
+            if let Some(prog) = exec
+                .as_deref()
+                .filter(|e| !e.contains("://"))
+                .and_then(exec_program)
+            {
                 let prog = prog.to_lowercase();
-                // Prefer visible entries for an executable.
-                match self.by_exec.get(&prog) {
-                    Some(&old) if !self.entries[old].no_display => {}
-                    _ => {
-                        self.by_exec.insert(prog, idx);
+                let is_named_after = |id: &str| {
+                    let id = id.to_lowercase();
+                    id == prog || id.rsplit('.').next() == Some(prog.as_str())
+                };
+                let new = &self.entries[idx];
+                let replace = match self.by_exec.get(&prog) {
+                    None => true,
+                    Some(&old) => {
+                        let old = &self.entries[old];
+                        // Prefer the entry named after the program, then visible entries.
+                        let old_rank = (is_named_after(&old.id), !old.no_display);
+                        let new_rank = (is_named_after(&new.id), !new.no_display);
+                        new_rank > old_rank
                     }
+                };
+                if replace {
+                    self.by_exec.insert(prog, idx);
                 }
             }
         }
     }
 
     pub fn by_id(&self, id: &str) -> Option<&DesktopEntry> {
+        // A program path (app started from a file manager): match its file name.
+        if id.contains('/') {
+            return self.by_exec(id.rsplit('/').next().unwrap_or(id));
+        }
         let key = id.to_lowercase();
         let key = key.trim_end_matches(".desktop");
         if let Some(&i) = self.by_id.get(key) {
@@ -218,12 +239,7 @@ pub fn classify_cgroup(cgroup: &str) -> (String, UnitKind) {
                 .find_map(|l| l.split(":name=systemd:").nth(1))
         })
         .unwrap_or("");
-    // Skip trailing sub-cgroups that aren't units (e.g. ".../app.service/tab-1").
-    let unit = path
-        .rsplit('/')
-        .find(|c| c.ends_with(".service") || c.ends_with(".scope"))
-        .unwrap_or("")
-        .to_string();
+    let unit = unit_from_path(path);
     if unit.is_empty() {
         return (unit, UnitKind::Other);
     }
@@ -247,6 +263,51 @@ pub fn classify_cgroup(cgroup: &str) -> (String, UnitKind) {
         (unit, UnitKind::Service)
     } else {
         (unit, UnitKind::Other)
+    }
+}
+
+/// The systemd unit a cgroup path belongs to.
+///
+/// The unit starts after the last slice (or the `user@UID.service` manager) and
+/// ends at the first `.service`/`.scope` component, so sub-cgroups after the
+/// unit (e.g. `.../app.service/tab-1`) are ignored.
+fn unit_from_path(path: &str) -> String {
+    let parts: Vec<&str> = path.split('/').filter(|c| !c.is_empty()).collect();
+    let is_unit = |c: &str| c.ends_with(".service") || c.ends_with(".scope");
+    let is_container =
+        |c: &str| c.ends_with(".slice") || (c.starts_with("user@") && c.ends_with(".service"));
+    let start = parts
+        .iter()
+        .rposition(|c| is_container(c))
+        .map_or(0, |i| i + 1);
+    match parts[start..].iter().position(|c| is_unit(c)) {
+        Some(end) => parts[start..=start + end].join("/"),
+        None => String::new(),
+    }
+}
+
+/// Friendly name for an app id that is a program path ("/home/me/Game/game.x86_64" -> "game").
+pub fn app_display_name(id: &str) -> String {
+    let base = id.rsplit('/').next().unwrap_or(id);
+    let mut name = base;
+    for suffix in [
+        ".x86_64",
+        ".x86",
+        ".AppImage",
+        ".appimage",
+        ".sh",
+        ".bin",
+        ".exe",
+    ] {
+        if let Some(n) = name.strip_suffix(suffix) {
+            name = n;
+            break;
+        }
+    }
+    if name.is_empty() {
+        base.to_string()
+    } else {
+        name.to_string()
     }
 }
 
@@ -328,6 +389,47 @@ mod tests {
         );
         let (_, k) = classify_cgroup("0::/user.slice/user-1000.slice/session-3.scope\n");
         assert_eq!(k, UnitKind::Other);
+        // Programs started from a file manager are named after their (escaped) path.
+        let (u, k) = classify_cgroup(
+            r"0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-\x2fhome\x2fme\x2fDownloads\x2fGame\x2dlinux\x2fGame.x86_64@ee0a64.service",
+        );
+        assert_eq!(
+            u,
+            r"app-\x2fhome\x2fme\x2fDownloads\x2fGame\x2dlinux\x2fGame.x86_64@ee0a64.service"
+        );
+        assert_eq!(
+            k,
+            UnitKind::App("/home/me/Downloads/Game-linux/Game.x86_64".into())
+        );
+        assert_eq!(
+            app_display_name("/home/me/Downloads/Game-linux/Game.x86_64"),
+            "Game"
+        );
+        // Sub-cgroups below a unit and the user manager's own scope.
+        let (u, _) = classify_cgroup(
+            "0::/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.kde.konsole@x.service/tab-1\n",
+        );
+        assert_eq!(u, "app-org.kde.konsole@x.service");
+        let (u, _) =
+            classify_cgroup("0::/user.slice/user-1000.slice/user@1000.service/init.scope\n");
+        assert_eq!(u, "init.scope");
+    }
+
+    #[test]
+    fn url_shortcuts_do_not_claim_launcher() {
+        let dir = std::env::temp_dir().join(format!("mot-apps-{}", std::process::id()));
+        let apps = dir.join("applications");
+        std::fs::create_dir_all(&apps).unwrap();
+        std::fs::write(apps.join("Overwatch.desktop"), "[Desktop Entry]\nType=Application\nName=Overwatch\nExec=steam steam://rungameid/2357570\n").unwrap();
+        std::fs::write(
+            apps.join("steam.desktop"),
+            "[Desktop Entry]\nType=Application\nName=Steam\nExec=/usr/bin/steam %U\n",
+        )
+        .unwrap();
+        let mut db = DesktopDb::default();
+        db.scan(&apps, &apps);
+        assert_eq!(db.by_exec("steam").map(|e| e.name.as_ref()), Some("Steam"));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]

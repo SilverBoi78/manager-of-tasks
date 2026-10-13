@@ -251,3 +251,35 @@ pub fn engine_label(name: &str) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Prints the busiest GPU processes. Run with
+    /// `cargo test live_gpu -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_gpu() {
+        let pids: Vec<i32> = std::fs::read_dir("/proc")
+            .unwrap()
+            .flatten()
+            .filter_map(|e| e.file_name().to_str()?.parse().ok())
+            .collect();
+        let mut s = super::FdInfoScanner::new();
+        s.scan(&pids);
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let (procs, engines) = s.scan(&pids);
+        let mut v: Vec<_> = procs.into_iter().filter(|(_, p)| p.util > 0.5).collect();
+        v.sort_by(|a, b| b.1.util.total_cmp(&a.1.util));
+        for (pid, p) in v.iter().take(5) {
+            let comm = std::fs::read_to_string(format!("/proc/{pid}/comm")).unwrap_or_default();
+            println!(
+                "{pid} {} {:.1}% {:?} vram={} MB",
+                comm.trim(),
+                p.util,
+                p.engine,
+                p.vram >> 20
+            );
+        }
+        println!("engines: {engines:?}");
+    }
+}

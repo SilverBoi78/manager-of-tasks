@@ -1,6 +1,6 @@
 [package]
 name = "manager-of-tasks"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.95"
 description = "A task manager for Linux inspired by the Windows 11 Task Manager: processes, performance graphs, GPU usage, startup apps, users, details and services."

@@ -69,7 +69,8 @@ struct Cached {
     cmdline: Arc<str>,
     unit: Arc<str>,
     kind: UnitKind,
-    cgroup_tick: u64,
+    /// Sample at which the cgroup was last read (None = never).
+    cgroup_tick: Option<u64>,
     prev_cpu: Option<u64>,
     prev_io: Option<(u64, u64)>,
 }
@@ -183,12 +184,13 @@ impl ProcSampler {
             let c = self.cache.get_mut(&pid).expect("inserted above");
             let start_time = start_ticks as f64 / self.clk_tck;
             let age = uptime - start_time;
-            if !kernel && (age < 10.0 || self.tick - c.cgroup_tick >= 30) {
+            let stale = c.cgroup_tick.is_none_or(|t| self.tick - t >= 30);
+            if !kernel && (age < 10.0 || stale) {
                 let (unit, kind) =
                     classify_cgroup(&read(format!("/proc/{pid}/cgroup")).unwrap_or_default());
                 c.unit = unit.into();
                 c.kind = kind;
-                c.cgroup_tick = self.tick;
+                c.cgroup_tick = Some(self.tick);
             }
             if c.comm.as_ref() != comm_raw {
                 c.comm = comm_raw.into();
@@ -296,15 +298,17 @@ impl ProcSampler {
                     app_name = Some(
                         entry
                             .map(|e| e.name.clone())
-                            .unwrap_or_else(|| id.as_str().into()),
+                            .unwrap_or_else(|| super::apps::app_display_name(id).into()),
                     );
-                    app_id = Some(entry.map(|e| e.id.as_str()).unwrap_or(id).into());
+                    let id: Arc<str> = entry.map(|e| e.id.as_str()).unwrap_or(id).into();
+                    app_id = Some(id.clone());
                     if icon.is_none()
                         || exe_entry.is_some_and(|e| Some(&e.id) != entry.map(|x| &x.id))
                     {
                         icon = entry.and_then(|e| e.icon.clone()).or(icon);
                     }
-                    c.unit.clone()
+                    // One row per app, even when it runs in several units (windows).
+                    format!("app:{id}").into()
                 }
                 UnitKind::BackgroundApp(id) => {
                     if let Some(e) = self.db.by_id(id) {
@@ -435,7 +439,7 @@ fn promote_untracked_apps(procs: &mut [Proc], db: &DesktopDb) {
             let p = &mut procs[i];
             if p.class == Class::Background || p.class == Class::App {
                 p.class = Class::App;
-                p.group = format!("tree:{r}").into();
+                p.group = format!("app:{}", roots[&r].1).into();
                 p.app_name = Some(name);
                 p.app_id = Some(id);
                 if p.icon.is_none() {
@@ -457,7 +461,7 @@ fn new_cached(pid: i32, comm: &str, start_ticks: u64, kernel: bool) -> Cached {
             exe_path: None,
             unit: "".into(),
             kind: UnitKind::Other,
-            cgroup_tick: 0,
+            cgroup_tick: None,
             prev_cpu: None,
             prev_io: None,
         };
@@ -507,7 +511,7 @@ fn new_cached(pid: i32, comm: &str, start_ticks: u64, kernel: bool) -> Cached {
         cmdline: cmdline.into(),
         unit: "".into(),
         kind: UnitKind::Other,
-        cgroup_tick: 0,
+        cgroup_tick: None,
         prev_cpu: None,
         prev_io: None,
     }
@@ -546,4 +550,37 @@ fn lookup_user(uid: u32) -> (Arc<str>, Arc<str>) {
     let full = gecos.split(',').next().unwrap_or("").trim().to_string();
     let full = if full.is_empty() { name.clone() } else { full };
     (name.into(), full.into())
+}
+
+#[cfg(test)]
+mod tests {
+    /// Prints how the running system's processes are grouped. Run with
+    /// `cargo test live_groups -- --ignored --nocapture`.
+    #[test]
+    #[ignore]
+    fn live_groups() {
+        let db = std::sync::Arc::new(super::DesktopDb::load());
+        let mut s = super::ProcSampler::new(db);
+        s.sample();
+        let mut groups: std::collections::BTreeMap<String, Vec<String>> = Default::default();
+        for p in s.sample().procs {
+            if p.class == super::Class::App {
+                let name = p.app_name.as_deref().unwrap_or("?").to_string();
+                groups
+                    .entry(format!("{name} [{}]", p.group))
+                    .or_default()
+                    .push(p.exe_name.to_string());
+            }
+        }
+        for (g, procs) in groups {
+            println!("{g}: {}", procs.join(", "));
+        }
+        if let Ok(pid) = std::env::var("MOT_PID") {
+            let pid: i32 = pid.parse().unwrap();
+            let cg = std::fs::read_to_string(format!("/proc/{pid}/cgroup")).unwrap();
+            println!("classify: {:?}", super::classify_cgroup(&cg));
+            let p = s.sample().procs.into_iter().find(|p| p.pid == pid);
+            println!("{p:#?}");
+        }
+    }
 }
