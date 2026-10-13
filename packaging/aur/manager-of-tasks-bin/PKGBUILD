@@ -1,0 +1,28 @@
+# Maintainer: SilverBoi78 <96032631+SilverBoi78@users.noreply.github.com>
+
+pkgname=manager-of-tasks-bin
+_pkgname=manager-of-tasks
+pkgver=0.1.1
+pkgrel=1
+pkgdesc="A task manager inspired by the Windows 11 Task Manager: processes, performance graphs and GPU usage (prebuilt)"
+arch=('x86_64')
+url="https://github.com/SilverBoi78/manager-of-tasks"
+license=('MIT')
+depends=('gcc-libs' 'glibc' 'libxkbcommon' 'wayland' 'libglvnd' 'libx11' 'libxcursor' 'libxrandr' 'libxi'
+         'fontconfig' 'hwdata' 'hicolor-icon-theme')
+optdepends=('nvidia-utils: NVIDIA GPU statistics'
+            'networkmanager: show the Wi-Fi network name'
+            'polkit: end system processes and raise priorities as administrator'
+            'xdg-utils: open files, folders and web links')
+provides=("$_pkgname")
+conflicts=("$_pkgname")
+source=("$_pkgname-$pkgver-x86_64.tar.gz::$url/releases/download/v$pkgver/$_pkgname-x86_64-linux.tar.gz")
+sha256sums=('30f272e5fd66c4646f51ee701f9c8e991876772db373cbc871f4ede941f4c3a2')
+
+package() {
+  cd "$_pkgname"
+  install -Dm755 manager-of-tasks "$pkgdir/usr/bin/manager-of-tasks"
+  install -Dm644 assets/manager-of-tasks.desktop "$pkgdir/usr/share/applications/manager-of-tasks.desktop"
+  install -Dm644 assets/manager-of-tasks.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/manager-of-tasks.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

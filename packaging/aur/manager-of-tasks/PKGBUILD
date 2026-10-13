@@ -1,0 +1,47 @@
+# Maintainer: SilverBoi78 <96032631+SilverBoi78@users.noreply.github.com>
+
+pkgname=manager-of-tasks
+pkgver=0.1.1
+pkgrel=1
+pkgdesc="A task manager inspired by the Windows 11 Task Manager: processes, performance graphs and GPU usage"
+arch=('x86_64' 'aarch64')
+url="https://github.com/SilverBoi78/manager-of-tasks"
+license=('MIT')
+depends=('gcc-libs' 'glibc' 'libxkbcommon' 'wayland' 'libglvnd' 'libx11' 'libxcursor' 'libxrandr' 'libxi'
+         'fontconfig' 'hwdata' 'hicolor-icon-theme')
+makedepends=('cargo')
+optdepends=('nvidia-utils: NVIDIA GPU statistics'
+            'networkmanager: show the Wi-Fi network name'
+            'polkit: end system processes and raise priorities as administrator'
+            'xdg-utils: open files, folders and web links')
+conflicts=('manager-of-tasks-bin')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('79a830340e4eeb14139a2d85e59bd1cf111cb5c000a5f272202421d5f48fa7bd')
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release
+}
+
+check() {
+  cd "$pkgname-$pkgver"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo test --frozen --release
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm755 target/release/manager-of-tasks "$pkgdir/usr/bin/manager-of-tasks"
+  install -Dm644 assets/manager-of-tasks.desktop "$pkgdir/usr/share/applications/manager-of-tasks.desktop"
+  install -Dm644 assets/manager-of-tasks.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/manager-of-tasks.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}
