@@ -1,6 +1,6 @@
 # Manager of Tasks
 
-A task manager for Linux that looks and works like the **Windows 11 Task Manager**, written in Rust with [egui](https://github.com/emilk/egui).
+A task manager for Linux inspired by the **Windows 11 Task Manager**, written in Rust with [egui](https://github.com/emilk/egui).
 
 Processes grouped into *Apps / Background processes / System processes* with heat-map columns, live Performance graphs for CPU, memory, disks, network and **GPUs (AMD, NVIDIA and Intel)**, plus App history, Startup apps, Users, Details and Services pages.
 
@@ -111,4 +111,6 @@ The code is organized as:
 
 ## License
 
-[MIT](LICENSE). Not affiliated with Microsoft. "Windows" and "Task Manager" are trademarks of Microsoft Corporation.
+[MIT](LICENSE).
+
+Manager of Tasks is an independent project. It is not affiliated with, endorsed by, or sponsored by Microsoft, and it contains no Microsoft code, images, icons or fonts. Microsoft and Windows are trademarks of the Microsoft group of companies.

@@ -174,7 +174,7 @@ pub fn ui(ui: &mut Ui, ctx: &mut PageCtx) {
                 &pal,
                 ph::INFO,
                 &format!("Manager of Tasks {}", env!("CARGO_PKG_VERSION")),
-                "A Windows 11 style task manager for Linux. Open source under the MIT license.",
+                "A task manager for Linux inspired by Windows 11. Open source under the MIT license.",
                 |ui| {
                     if ui
                         .button(

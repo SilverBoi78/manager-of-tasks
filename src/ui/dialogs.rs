@@ -146,7 +146,7 @@ impl Dialogs {
             ui.label(RichText::new("Create new task").font(semibold(18.0)));
             ui.add_space(6.0);
             ui.label(
-                RichText::new("Type the name of a program, folder, document, or Internet resource, and Manager of Tasks will open it for you.")
+                RichText::new("Enter a command to run, or a file, folder or web address to open.")
                     .color(pal.text_weak),
             );
             ui.add_space(8.0);
@@ -166,13 +166,22 @@ impl Dialogs {
                 }
             });
             ui.add_space(4.0);
-            ui.checkbox(&mut run.admin, "Create this task with administrative privileges");
+            ui.checkbox(
+                &mut run.admin,
+                "Create this task with administrative privileges",
+            );
             ui.add_space(10.0);
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                 if ui.button("Cancel").clicked() {
                     close = true;
                 }
-                if ui.add(egui::Button::new(RichText::new("OK").color(egui::Color32::WHITE)).fill(pal.accent)).clicked() {
+                if ui
+                    .add(
+                        egui::Button::new(RichText::new("OK").color(egui::Color32::WHITE))
+                            .fill(pal.accent),
+                    )
+                    .clicked()
+                {
                     submit = true;
                 }
             });

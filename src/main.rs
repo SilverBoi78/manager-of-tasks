@@ -1,4 +1,4 @@
-//! Manager of Tasks — a Windows 11 Task Manager look-alike for Linux.
+//! Manager of Tasks — a task manager for Linux inspired by the Windows 11 Task Manager.
 
 mod actions;
 mod app;

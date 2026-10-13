@@ -609,13 +609,13 @@ fn composition_bar(ui: &mut Ui, pal: &Palette, m: &crate::sys::memory::MemStats)
             "Modified",
             m.modified,
             blend(pal.fill_of(pal.mem), pal.graph_bg, 0.35),
-            "Memory whose contents must be written to disk before it can be used for another purpose",
+            "Changed (dirty) pages waiting to be saved to disk",
         ),
         (
             "Standby",
             m.standby,
             blend(pal.fill_of(pal.mem), pal.graph_bg, 0.65),
-            "Memory that contains cached data and code that is not actively in use",
+            "File cache that Linux can free instantly when apps need memory",
         ),
         (
             "Free",

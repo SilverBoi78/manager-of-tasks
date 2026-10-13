@@ -229,7 +229,7 @@ impl App {
                         );
                         let edit = egui::TextEdit::singleline(&mut self.search)
                             .frame(egui::Frame::NONE)
-                            .hint_text("Type a name, publisher, or PID to search")
+                            .hint_text("Search by name or PID")
                             .desired_width(ui.available_width() - 22.0);
                         let r = ui.add(edit);
                         if self.focus_search {
