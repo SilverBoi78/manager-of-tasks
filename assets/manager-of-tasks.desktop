@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Manager of Tasks
+GenericName=Task Manager
+Comment=See and manage running apps, processes and system performance
+Exec=manager-of-tasks
+Icon=manager-of-tasks
+Terminal=false
+Categories=System;Monitor;
+Keywords=task;manager;process;monitor;performance;cpu;gpu;memory;kill;
+StartupWMClass=manager-of-tasks

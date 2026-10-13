@@ -1,0 +1,28 @@
+[package]
+name = "manager-of-tasks"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+description = "A Windows 11 Task Manager look-alike for Linux: processes, performance graphs, GPU usage, startup apps, users, details and services."
+license = "MIT"
+repository = "https://github.com/SilverBoi78/manager-of-tasks"
+readme = "README.md"
+keywords = ["task-manager", "system-monitor", "gpu", "egui", "linux"]
+categories = ["gui", "os::linux-apis", "visualization"]
+
+[dependencies]
+eframe = { version = "0.36", default-features = false, features = ["default_fonts", "glow", "wayland", "x11"] }
+egui = "0.36"
+egui-phosphor = "0.14"
+egui_extras = { version = "0.36", features = ["svg", "image", "file"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+libc = "0.2"
+nvml-wrapper = "0.13"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
