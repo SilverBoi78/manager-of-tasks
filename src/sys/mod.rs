@@ -11,6 +11,7 @@ pub mod memory;
 pub mod net;
 pub mod pci;
 pub mod process;
+pub mod report;
 pub mod services;
 pub mod startup;
 

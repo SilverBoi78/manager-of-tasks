@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   build:
+    # Build on an older Ubuntu so the binary runs on any distro with glibc 2.35 or newer.
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -17,15 +18,24 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libwayland-dev
       - uses: dtolnay/rust-toolchain@stable
+      - name: Check the tag matches Cargo.toml
+        run: |
+          CARGO_VERSION="v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+          [ "$CARGO_VERSION" = "$GITHUB_REF_NAME" ] || { echo "Tag $GITHUB_REF_NAME does not match Cargo.toml $CARGO_VERSION"; exit 1; }
+      - run: cargo test --release
       - run: cargo build --release
       - name: Package
         run: |
-          NAME=manager-of-tasks-${GITHUB_REF_NAME}-x86_64-linux
-          mkdir -p "$NAME"
-          cp target/release/manager-of-tasks LICENSE README.md "$NAME/"
-          cp -r assets scripts "$NAME/"
-          tar czf "$NAME.tar.gz" "$NAME"
+          ASSET=manager-of-tasks-x86_64-linux.tar.gz
+          mkdir -p manager-of-tasks/scripts
+          cp target/release/manager-of-tasks LICENSE README.md manager-of-tasks/
+          cp -r assets manager-of-tasks/
+          cp scripts/install.sh manager-of-tasks/scripts/
+          tar czf "$ASSET" manager-of-tasks
+          sha256sum "$ASSET" > "$ASSET.sha256"
       - uses: softprops/action-gh-release@v2
         with:
-          files: manager-of-tasks-*.tar.gz
+          files: |
+            manager-of-tasks-x86_64-linux.tar.gz
+            manager-of-tasks-x86_64-linux.tar.gz.sha256
           generate_release_notes: true

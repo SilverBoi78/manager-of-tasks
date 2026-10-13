@@ -13,9 +13,13 @@ fn main() -> eframe::Result {
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--help" || a == "-h") {
         println!(
-            "Manager of Tasks {}\n\nUsage: manager-of-tasks [--page <processes|performance|app-history|startup|users|details|services|settings|cpu|memory|diskN|netN|gpuN>]",
+            "Manager of Tasks {}\n\nUsage: manager-of-tasks [OPTIONS]\n\n  --page <PAGE>    Open on a page: processes, performance, app-history, startup,\n                   users, details, services, settings, cpu, memory, diskN, netN, gpuN\n  --system-info    Print a system summary for bug reports\n  -V, --version    Print the version\n  -h, --help       Print this help",
             env!("CARGO_PKG_VERSION")
         );
+        return Ok(());
+    }
+    if args.iter().any(|a| a == "--system-info") {
+        print!("{}", sys::report::system_info());
         return Ok(());
     }
     if args.iter().any(|a| a == "--version" || a == "-V") {

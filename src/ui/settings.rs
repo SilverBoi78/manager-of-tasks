@@ -190,6 +190,29 @@ pub fn ui(ui: &mut Ui, ctx: &mut PageCtx) {
             if open_repo {
                 ctx.actions.open_url(REPO_URL);
             }
+            let (mut copy_info, mut report) = (false, false);
+            setting_card(
+                ui,
+                &pal,
+                ph::BUG,
+                "Report a problem",
+                "Copy a summary of your distro, desktop and hardware to paste into a bug report",
+                |ui| {
+                    if ui.button(RichText::new(format!("{}  Report a bug", ph::ARROW_SQUARE_OUT)).font(regular(13.0))).clicked() {
+                        report = true;
+                    }
+                    if ui.button(RichText::new(format!("{}  Copy system info", ph::COPY)).font(regular(13.0))).clicked() {
+                        copy_info = true;
+                    }
+                },
+            );
+            if copy_info {
+                ui.ctx().copy_text(crate::sys::report::system_info());
+                ctx.actions.notify(crate::actions::Notice::Info("System info copied to the clipboard.".into()));
+            }
+            if report {
+                ctx.actions.open_url(&format!("{REPO_URL}/issues/new/choose"));
+            }
             ui.add_space(12.0);
         });
 }

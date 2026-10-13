@@ -1,0 +1,31 @@
+name: Works on my machine
+description: Tell us it works (or partly works) on your hardware and distro
+labels: ["hardware report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports from different GPUs, desktops and distros help us know what is supported. Short reports are perfect.
+  - type: textarea
+    id: sysinfo
+    attributes:
+      label: System info
+      description: Output of `manager-of-tasks --system-info` (or Settings → Report a problem → Copy system info).
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: works
+    attributes:
+      label: What works?
+      options:
+        - label: Processes page groups my apps correctly
+        - label: CPU, memory, disk and network graphs
+        - label: GPU utilization and memory
+        - label: Per-process GPU usage
+        - label: Services page
+        - label: Startup apps page
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything wrong or missing?

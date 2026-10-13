@@ -37,27 +37,49 @@ Temperature, clocks, power draw and fan speed are shown when the driver exposes 
 
 ## Install
 
+### Quick install (x86_64)
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/SilverBoi78/manager-of-tasks/main/scripts/get.sh | sh
+```
+
+This downloads the latest [release](https://github.com/SilverBoi78/manager-of-tasks/releases), checks its SHA-256 checksum and installs it to `~/.local` with an app menu entry. Nothing is installed system-wide and no `sudo` is needed. You can [read the script](scripts/get.sh) before running it.
+
+To uninstall:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/SilverBoi78/manager-of-tasks/main/scripts/get.sh | sh -s -- --uninstall
+```
+
+The prebuilt binary runs on distros with glibc 2.35 or newer: Ubuntu 22.04+, Debian 12+, Fedora 36+, Linux Mint 21+, openSUSE Tumbleweed, Arch and its derivatives, and similar.
+
+### Manual download
+
+Download `manager-of-tasks-x86_64-linux.tar.gz` from the [Releases page](https://github.com/SilverBoi78/manager-of-tasks/releases), then:
+
+```sh
+tar xzf manager-of-tasks-x86_64-linux.tar.gz
+./manager-of-tasks/manager-of-tasks              # run it directly, or
+./manager-of-tasks/scripts/install.sh            # install to ~/.local
+```
+
 ### Build from source
 
-You need a Rust toolchain (1.95 or newer); get one from [rustup.rs](https://rustup.rs).
+Needed for other CPU architectures (ARM) and musl distros (Alpine). You need a Rust toolchain (1.95 or newer) from [rustup.rs](https://rustup.rs); distro-packaged Rust is often too old.
 
 ```sh
 git clone https://github.com/SilverBoi78/manager-of-tasks.git
 cd manager-of-tasks
-./scripts/install.sh            # installs to ~/.local (binary, menu entry and icon)
+./scripts/install.sh            # builds and installs to ~/.local (binary, menu entry and icon)
 ```
 
-Uninstall with `./scripts/install.sh --uninstall`. To install system-wide, run `sudo PREFIX=/usr/local ./scripts/install.sh`.
+Uninstall with `./scripts/install.sh --uninstall`. To install system-wide, run `sudo PREFIX=/usr/local ./scripts/install.sh`. Or just run it without installing: `cargo run --release`.
 
-Or just run it without installing:
+On Debian/Ubuntu, building also needs:
 
 ```sh
-cargo run --release
+sudo apt install build-essential libxkbcommon-dev libwayland-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 ```
-
-### Prebuilt binaries
-
-Tagged releases include an `x86_64` Linux build on the [Releases page](https://github.com/SilverBoi78/manager-of-tasks/releases).
 
 ### Open it with Ctrl+Shift+Esc
 
@@ -67,10 +89,23 @@ Tagged releases include an `x86_64` Linux build on the [Releases page](https://g
 ## Command line
 
 ```
-manager-of-tasks [--page <processes|performance|app-history|startup|users|details|services|settings|cpu|memory|diskN|netN|gpuN>]
+manager-of-tasks [--page <PAGE>] [--system-info] [--version]
 ```
 
-For example `manager-of-tasks --page gpu` opens straight to the GPU graphs.
+`--page` opens a page directly: `processes`, `performance`, `app-history`, `startup`, `users`, `details`, `services`, `settings`, or a Performance view such as `cpu`, `memory`, `disk0`, `net0` or `gpu0`. For example, `manager-of-tasks --page gpu` opens straight to the GPU graphs.
+
+## Compatibility
+
+Manager of Tasks reads standard kernel interfaces (`/proc`, `/sys`), so it should work on any modern distro, on both Wayland and X11. It's still young, though, and has only been tested on a few machines:
+
+| Tested | Hardware / setup |
+| --- | --- |
+| ✅ Works | CachyOS, KDE Plasma 6 (Wayland), Intel Core i5-13600K, AMD Radeon RX 9070 XT |
+| ⚠️ Expected to work, untested | GNOME and other desktops, X11 sessions, NVIDIA (proprietary driver), Intel graphics, laptops with two GPUs |
+| ⚠️ Partial | Distros without systemd: no Services page, less precise app grouping |
+| ❌ Not yet | GPUs that aren't PCI devices (Raspberry Pi and other ARM boards); prebuilt binaries for ARM |
+
+If you try it, please [report how it went](https://github.com/SilverBoi78/manager-of-tasks/issues/new/choose), even if it works fine. **Settings → Report a problem → Copy system info** (or `manager-of-tasks --system-info`) copies everything we need.
 
 ## How it maps Windows concepts to Linux
 

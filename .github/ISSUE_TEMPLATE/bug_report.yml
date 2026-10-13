@@ -1,0 +1,50 @@
+name: Bug report
+description: Something is wrong, missing or crashes
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing Manager of Tasks! Hardware and distro details help a lot, because the app has only been tested on a few machines.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? Screenshots are very welcome.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Performance page
+        2. Click GPU 0
+        3. ...
+  - type: textarea
+    id: sysinfo
+    attributes:
+      label: System info
+      description: |
+        Run `manager-of-tasks --system-info` in a terminal, or use **Settings → Report a problem → Copy system info** in the app, and paste the result here.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - One-line installer (get.sh)
+        - Release download
+        - AUR
+        - Built from source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal output
+      description: If the app crashed or printed errors, start it from a terminal with `manager-of-tasks` and paste what it prints.
+      render: text
