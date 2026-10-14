@@ -4,9 +4,11 @@
 //! which shows the desktop's polkit password prompt (the Linux equivalent of
 //! "Run as administrator").
 
+use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use std::sync::mpsc::Sender;
+use std::time::{Duration, Instant};
 
 pub enum Notice {
     Info(String),
@@ -52,6 +54,58 @@ fn run_pkexec(args: &[String]) -> Result<(), String> {
     }
 }
 
+/// How long End task waits for processes to exit before killing them.
+const END_TASK_GRACE: Duration = Duration::from_secs(3);
+
+fn pidfd_open(pid: i32) -> Option<OwnedFd> {
+    // SAFETY: pidfd_open takes plain integers and returns a new fd or -1.
+    let fd = unsafe { libc::syscall(libc::SYS_pidfd_open, pid, 0) };
+    // SAFETY: on success the fd is new and owned by nobody else.
+    (fd >= 0).then(|| unsafe { OwnedFd::from_raw_fd(fd as i32) })
+}
+
+/// Wait up to `grace` for the processes to exit, then SIGKILL the rest.
+fn kill_survivors(mut fds: Vec<OwnedFd>, grace: Duration) {
+    let deadline = Instant::now() + grace;
+    loop {
+        // A pidfd becomes readable once its process has exited.
+        let mut polls: Vec<libc::pollfd> = fds
+            .iter()
+            .map(|fd| libc::pollfd {
+                fd: fd.as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            })
+            .collect();
+        let left = deadline.saturating_duration_since(Instant::now());
+        // SAFETY: `polls` is a valid array of `polls.len()` pollfds.
+        unsafe {
+            libc::poll(
+                polls.as_mut_ptr(),
+                polls.len() as libc::nfds_t,
+                left.as_millis().min(100) as i32,
+            )
+        };
+        let mut running = polls.iter().map(|p| p.revents == 0);
+        fds.retain(|_| running.next().unwrap_or(false));
+        if fds.is_empty() || left.is_zero() {
+            break;
+        }
+    }
+    for fd in fds {
+        // SAFETY: pidfd_send_signal takes a valid pidfd and a null siginfo.
+        unsafe {
+            libc::syscall(
+                libc::SYS_pidfd_send_signal,
+                fd.as_raw_fd(),
+                libc::SIGKILL,
+                std::ptr::null::<libc::siginfo_t>(),
+                0,
+            )
+        };
+    }
+}
+
 const IOPRIO_WHO_PROCESS: libc::c_long = 1;
 const IOPRIO_CLASS_SHIFT: libc::c_long = 13;
 const IOPRIO_CLASS_IDLE: libc::c_long = 3;
@@ -88,14 +142,28 @@ impl Actions {
     }
 
     /// Send a signal, retrying with pkexec for processes we may not signal.
+    ///
+    /// SIGTERM is "End task": processes that are still running after a grace
+    /// period (e.g. apps that only hide to the system tray) are killed, like
+    /// End task on Windows always ends the app.
     pub fn signal(&self, pids: Vec<i32>, sig: i32) {
         self.background(move || {
             let mut denied = Vec::new();
+            let mut ended = Vec::new();
             for &pid in &pids {
+                // Opened before signalling, so the pid cannot be reused under us.
+                let fd = (sig == libc::SIGTERM).then(|| pidfd_open(pid)).flatten();
                 // SAFETY: kill(2) has no memory safety preconditions.
-                if unsafe { libc::kill(pid, sig) } != 0 && errno() == libc::EPERM {
-                    denied.push(pid);
+                if unsafe { libc::kill(pid, sig) } != 0 {
+                    if errno() == libc::EPERM {
+                        denied.push(pid);
+                    }
+                } else if let Some(fd) = fd {
+                    ended.push(fd);
                 }
+            }
+            if !ended.is_empty() {
+                kill_survivors(ended, END_TASK_GRACE);
             }
             if denied.is_empty() {
                 return Ok(None);
@@ -392,6 +460,20 @@ mod tests {
         wait_refresh(&rx);
         let status = child.wait().unwrap();
         assert!(!status.success());
+    }
+
+    #[test]
+    fn end_task_kills_process_ignoring_sigterm() {
+        let mut child = Command::new("sh")
+            .args(["-c", "trap '' TERM; sleep 30"])
+            .spawn()
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        let (a, rx) = actions();
+        a.signal(vec![child.id() as i32], libc::SIGTERM);
+        wait_refresh(&rx);
+        use std::os::unix::process::ExitStatusExt;
+        assert_eq!(child.wait().unwrap().signal(), Some(libc::SIGKILL));
     }
 
     #[test]

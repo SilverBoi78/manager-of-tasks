@@ -174,6 +174,9 @@ pub fn apply(ctx: &egui::Context) {
             let dark = theme == Theme::Dark;
             // Compute palette for this theme without depending on the current mode.
             let p = Palette::new(dark);
+            // Selectable labels take the clicks over their text, so clicking or
+            // right-clicking a table row on its text would not select the row.
+            style.interaction.selectable_labels = false;
             let v = &mut style.visuals;
             v.panel_fill = p.content;
             v.window_fill = p.card;

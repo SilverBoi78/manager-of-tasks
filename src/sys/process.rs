@@ -359,11 +359,83 @@ impl ProcSampler {
             });
         }
         self.cache.retain(|pid, _| alive.contains(pid));
+        merge_moved_scopes(&mut procs);
         promote_untracked_apps(&mut procs, &self.db);
         ProcSample {
             procs,
             threads,
             deltas,
+        }
+    }
+}
+
+/// Chromium and Electron apps (LM Studio, VS Code, Discord, ...) move their main
+/// process into a scope of their own (`app-org.chromium.Chromium-<pid>.scope`)
+/// after starting helper processes, which stay in the unit the app was launched
+/// in. Put both halves back together so the app is one row and ending it ends
+/// all of it. A process is recognized as moved when a child running the same
+/// executable is still in another unit.
+fn merge_moved_scopes(procs: &mut [Proc]) {
+    let index: HashMap<i32, usize> = procs.iter().enumerate().map(|(i, p)| (p.pid, i)).collect();
+    // (unit to regroup, only the subtree of this pid within it, index of the target process)
+    let mut moves: Vec<(Arc<str>, Option<i32>, usize)> = Vec::new();
+    for (ci, c) in procs.iter().enumerate() {
+        let Some(&pi) = index.get(&c.ppid) else {
+            continue;
+        };
+        let p = &procs[pi];
+        if p.class != Class::App
+            || c.unit == p.unit
+            || c.uid != p.uid
+            || c.group == p.group
+            || c.exe_path.is_none()
+            || c.exe_path != p.exe_path
+        {
+            continue;
+        }
+        if c.class == Class::App {
+            // Launched as an app: the moved process joins the app it came from.
+            moves.push((p.unit.clone(), None, ci));
+        } else if c.class == Class::Background {
+            // Launched outside an app unit: its helpers join the moved process.
+            moves.push((c.unit.clone(), Some(c.pid), pi));
+        }
+    }
+    for (unit, root, target) in moves {
+        let t = &procs[target];
+        let (group, app_name, app_id, icon) = (
+            t.group.clone(),
+            t.app_name.clone(),
+            t.app_id.clone(),
+            t.icon.clone(),
+        );
+        for i in 0..procs.len() {
+            if procs[i].unit != unit {
+                continue;
+            }
+            if let Some(root) = root {
+                // Walk up within the unit to see whether this process descends from `root`.
+                let mut cur = i;
+                let mut hops = 0;
+                while procs[cur].pid != root && hops < 64 {
+                    match index.get(&procs[cur].ppid) {
+                        Some(&pi) if procs[pi].unit == unit => cur = pi,
+                        _ => break,
+                    }
+                    hops += 1;
+                }
+                if procs[cur].pid != root {
+                    continue;
+                }
+            }
+            let q = &mut procs[i];
+            q.class = Class::App;
+            q.group = group.clone();
+            q.app_name = app_name.clone();
+            q.app_id = app_id.clone();
+            if q.icon.is_none() {
+                q.icon = icon.clone();
+            }
         }
     }
 }
