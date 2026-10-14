@@ -1,7 +1,7 @@
 # Maintainer: SilverBoi78 <96032631+SilverBoi78@users.noreply.github.com>
 
 pkgname=manager-of-tasks
-pkgver=0.1.1
+pkgver=0.1.2
 pkgrel=1
 pkgdesc="A task manager inspired by the Windows 11 Task Manager: processes, performance graphs and GPU usage"
 arch=('x86_64' 'aarch64')
@@ -16,7 +16,7 @@ optdepends=('nvidia-utils: NVIDIA GPU statistics'
             'xdg-utils: open files, folders and web links')
 conflicts=('manager-of-tasks-bin')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('79a830340e4eeb14139a2d85e59bd1cf111cb5c000a5f272202421d5f48fa7bd')
+sha256sums=('2082b51fd8e5c50099239829e732e9b0b4fa8b48a8d2352389d104774bf1d4fd')
 
 prepare() {
   cd "$pkgname-$pkgver"

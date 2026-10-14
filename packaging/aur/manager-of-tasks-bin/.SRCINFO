@@ -1,6 +1,6 @@
 pkgbase = manager-of-tasks-bin
 	pkgdesc = A task manager inspired by the Windows 11 Task Manager: processes, performance graphs and GPU usage (prebuilt)
-	pkgver = 0.1.1
+	pkgver = 0.1.2
 	pkgrel = 1
 	url = https://github.com/SilverBoi78/manager-of-tasks
 	arch = x86_64
@@ -23,7 +23,7 @@ pkgbase = manager-of-tasks-bin
 	optdepends = xdg-utils: open files, folders and web links
 	provides = manager-of-tasks
 	conflicts = manager-of-tasks
-	source = manager-of-tasks-0.1.1-x86_64.tar.gz::https://github.com/SilverBoi78/manager-of-tasks/releases/download/v0.1.1/manager-of-tasks-x86_64-linux.tar.gz
-	sha256sums = 30f272e5fd66c4646f51ee701f9c8e991876772db373cbc871f4ede941f4c3a2
+	source = manager-of-tasks-0.1.2-x86_64.tar.gz::https://github.com/SilverBoi78/manager-of-tasks/releases/download/v0.1.2/manager-of-tasks-x86_64-linux.tar.gz
+	sha256sums = 2a4347ddf22690872c2c5e206340c2b9db50fe3599ebde26f693abb53ee42bd1
 
 pkgname = manager-of-tasks-bin
